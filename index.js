@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
+require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,27 +11,24 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from /assets and /vendor
-app.use('/assets', express.static(path.join(__dirname, 'assets')));
-app.use('/vendor', express.static(path.join(__dirname, 'vendor')));
+// Static file serving (optional)
+app.use("/assets", express.static(path.join(__dirname, "assets")));
+app.use("/vendor", express.static(path.join(__dirname, "vendor")));
 
-// Serve index.html for GET /
+// Serve index.html (optional frontend testing)
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
 // MongoDB connection
-mongoose.connect(
-  "mongodb+srv://jaiswalanmol1151:Sx9DOE7MK5nZi1Vp@cluster0.qcjvgvp.mongodb.net/mediabross?retryWrites=true&w=majority&appName=Cluster0",
-  {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  }
-)
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
 .then(() => console.log("✅ Connected to MongoDB Atlas"))
 .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// Schema & Model
+// Contact Schema & Model
 const contactSchema = new mongoose.Schema({
   name: String,
   email: String,
@@ -50,7 +48,7 @@ app.post("/contact", async (req, res) => {
   }
 });
 
-// Start server
+// Start the server
 app.listen(PORT, () => {
-  console.log(🚀 Server running at http://localhost:${PORT});
-});  
+  console.log(`Server running at http://localhost:${PORT}`);
+});
