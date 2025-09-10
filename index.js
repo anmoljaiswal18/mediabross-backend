@@ -1,76 +1,79 @@
-// index.js
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
-const path = require("path");
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Serve static frontend files (index.html, css, js, etc.)
-app.use(express.static(path.join(__dirname)));
+// POST /api/contact
+app.post("/api/contact", async (req, res) => {
+  const { name, email, message } = req.body;
 
-// MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log("✅ Connected to MongoDB Atlas"))
-.catch((err) => console.error("❌ MongoDB connection error:", err));
-
-// Contact Schema
-const contactSchema = new mongoose.Schema({
-  name: String,
-  email: String,
-  message: String,
-});
-const Contact = mongoose.model("Contact", contactSchema);
-
-// 📩 Nodemailer setup
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,   // your Gmail
-    pass: process.env.EMAIL_PASS,   // app password
-  },
-});
-
-// Contact form route
-app.post("/contact", async (req, res) => {
   try {
-    const { name, email, message } = req.body;
-
-    // Save to DB
-    const contact = new Contact({ name, email, message });
-    await contact.save();
-
-    // Send email to YOU
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.EMAIL_USER,
-      subject: "📩 New Contact Form Submission",
-      text: `Name: ${name}\nEmail: ${email}\nMessage: ${message}`,
+    // Nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER, // your Gmail
+        pass: process.env.EMAIL_PASS, // app password
+      },
     });
 
-    // Auto reply to client
+    // Email to YOU
+    await transporter.sendMail({
+      from: email,
+      to: process.env.EMAIL_USER,
+      subject: `📩 New Contact from ${name}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; background:#f4f4f4;">
+          <h2 style="color:#2c3e50;">🚀 New Client Inquiry</h2>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Message:</strong></p>
+          <div style="padding:10px; background:#fff; border-radius:5px; border:1px solid #ddd;">
+            ${message}
+          </div>
+          <br/>
+          <p style="color:#555;">⚡ This message was sent from your Mediabross contact form.</p>
+        </div>
+      `,
+    });
+
+    // Auto-reply to client
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: email,
-      subject: "✅ Thanks for contacting Mediabross!",
-      text: `Hi ${name},\n\nThanks for contacting us. We’ll get back to you soon.\n\n- Team Mediabross`,
+      subject: "🎉 Thanks for contacting Mediabross!",
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; background:#fdfdfd; border: 1px solid #ddd; border-radius: 10px;">
+          <h2 style="color:#27ae60;">🙏 Thank You, ${name}!</h2>
+          <p style="font-size:16px; color:#333;">
+            We have received your message and our team will get back to you shortly.  
+          </p>
+          <p style="color:#555;">
+            Here’s a copy of your message:
+          </p>
+          <blockquote style="border-left: 4px solid #27ae60; padding-left: 10px; color:#444; margin:10px 0;">
+            ${message}
+          </blockquote>
+          <p style="font-size:14px; color:#888;">
+            🌍 Stay connected with us on <a href="https://mediabross.com" style="color:#27ae60;">mediabross.com</a>
+          </p>
+          <hr/>
+          <p style="font-size:12px; color:#aaa;">This is an automated response. Please don’t reply.</p>
+        </div>
+      `,
     });
 
-    res.status(200).send("✅ Message sent & saved!");
+    res.status(200).json({ success: true, message: "✅ Email sent successfully!" });
   } catch (error) {
-    console.error("❌ Error handling contact form:", error);
-    res.status(500).send("Error submitting form");
+    console.error("❌ Email error:", error);
+    res.status(500).json({ success: false, message: "Failed to send email." });
   }
 });
 
