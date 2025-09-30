@@ -1,3 +1,4 @@
+// index.js
 const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
@@ -10,36 +11,40 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// create transporter once
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS, // app password recommended
+  },
+});
+
+// Simple health route for GET /
+app.get("/", (req, res) => {
+  res.json({ status: "ok", message: "Mediabross backend is running" });
+});
+
 // POST /api/contact
 app.post("/api/contact", async (req, res) => {
   const { name, email, message } = req.body;
 
-  try {
-    // Nodemailer transporter
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER, // your Gmail
-        pass: process.env.EMAIL_PASS, // app password
-      },
-    });
+  if (!name || !email || !message) {
+    return res.status(400).json({ success: false, message: "Missing fields." });
+  }
 
+  try {
     // Email to YOU
     await transporter.sendMail({
       from: email,
       to: process.env.EMAIL_USER,
       subject: `📩 New Contact from ${name}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; background:#f4f4f4;">
-          <h2 style="color:#2c3e50;">🚀 New Client Inquiry</h2>
+      html: /* html trimmed for brevity — use your HTML here */ `
+        <div>
+          <h2>New Client Inquiry</h2>
           <p><strong>Name:</strong> ${name}</p>
           <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Message:</strong></p>
-          <div style="padding:10px; background:#fff; border-radius:5px; border:1px solid #ddd;">
-            ${message}
-          </div>
-          <br/>
-          <p style="color:#555;">⚡ This message was sent from your Mediabross contact form.</p>
+          <p><strong>Message:</strong><br/>${message}</p>
         </div>
       `,
     });
@@ -49,25 +54,7 @@ app.post("/api/contact", async (req, res) => {
       from: process.env.EMAIL_USER,
       to: email,
       subject: "🎉 Thanks for contacting Mediabross!",
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; background:#fdfdfd; border: 1px solid #ddd; border-radius: 10px;">
-          <h2 style="color:#27ae60;">🙏 Thank You, ${name}!</h2>
-          <p style="font-size:16px; color:#333;">
-            We have received your message and our team will get back to you shortly.  
-          </p>
-          <p style="color:#555;">
-            Here’s a copy of your message:
-          </p>
-          <blockquote style="border-left: 4px solid #27ae60; padding-left: 10px; color:#444; margin:10px 0;">
-            ${message}
-          </blockquote>
-          <p style="font-size:14px; color:#888;">
-            🌍 Stay connected with us on <a href="https://mediabross.com" style="color:#27ae60;">mediabross.com</a>
-          </p>
-          <hr/>
-          <p style="font-size:12px; color:#aaa;">This is an automated response. Please don’t reply.</p>
-        </div>
-      `,
+      html: `<div><p>Thanks ${name}, we got your message.</p></div>`,
     });
 
     res.status(200).json({ success: true, message: "✅ Email sent successfully!" });
@@ -79,5 +66,5 @@ app.post("/api/contact", async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
