@@ -7,64 +7,65 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// create transporter once
+// Nodemailer transporter
 const transporter = nodemailer.createTransport({
   service: "gmail",
+  pool: true,
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // app password recommended
+    pass: process.env.EMAIL_PASS, // Gmail App Password
   },
+  connectionTimeout: 10000,
+  socketTimeout: 10000,
 });
 
-// Simple health route for GET /
+// ✅ Health check
 app.get("/", (req, res) => {
-  res.json({ status: "ok", message: "Mediabross backend is running" });
+  res.json({ status: "ok", service: "Mediabross backend" });
 });
 
-// POST /api/contact
-app.post("/api/contact", async (req, res) => {
+// ✅ Contact route
+app.post("/api/contact", (req, res) => {
   const { name, email, message } = req.body;
 
   if (!name || !email || !message) {
     return res.status(400).json({ success: false, message: "Missing fields." });
   }
 
-  try {
-    // Email to YOU
-    await transporter.sendMail({
-      from: email,
-      to: process.env.EMAIL_USER,
-      subject: `📩 New Contact from ${name}`,
-      html: /* html trimmed for brevity — use your HTML here */ `
-        <div>
-          <h2>New Client Inquiry</h2>
-          <p><strong>Name:</strong> ${name}</p>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Message:</strong><br/>${message}</p>
-        </div>
-      `,
-    });
+  // 👉 Respond immediately so frontend never times out
+  res.status(202).json({ success: true, message: "Accepted — processing in background" });
 
-    // Auto-reply to client
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "🎉 Thanks for contacting Mediabross!",
-      html: `<div><p>Thanks ${name}, we got your message.</p></div>`,
-    });
+  // Background task: send emails AFTER responding
+  (async () => {
+    try {
+      // Email to you
+      await transporter.sendMail({
+        from: email,
+        to: process.env.EMAIL_USER,
+        subject: `📩 New Contact from ${name}`,
+        html: `<p><strong>Name:</strong> ${name}</p>
+               <p><strong>Email:</strong> ${email}</p>
+               <p>${message}</p>`,
+      });
 
-    res.status(200).json({ success: true, message: "✅ Email sent successfully!" });
-  } catch (error) {
-    console.error("❌ Email error:", error);
-    res.status(500).json({ success: false, message: "Failed to send email." });
-  }
+      // Auto-reply to client
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "🎉 Thanks for contacting Mediabross!",
+        html: `<p>Hi ${name}, we got your message and will reply soon.</p>`,
+      });
+
+      console.log(`✉️ Emails sent successfully for ${email}`);
+    } catch (err) {
+      console.error("❌ Email send failed:", err.message || err);
+    }
+  })();
 });
 
-// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
