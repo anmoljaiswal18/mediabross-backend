@@ -12,15 +12,15 @@ app.use(express.json());
 
 // Nodemailer transporter
 const transporter = nodemailer.createTransport({
-  service: "gmail",
-  pool: true,
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS, // Gmail App Password
   },
-  connectionTimeout: 10000,
-  socketTimeout: 10000,
 });
+
 
 // ✅ Health check
 app.get("/", (req, res) => {
